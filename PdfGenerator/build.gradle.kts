@@ -49,7 +49,7 @@ afterEvaluate {
         publications {
             create<MavenPublication>("release") {
                 // Maven Coordinates
-                groupId = "https://github.com/rjfahad44/rjfahad44"
+                groupId = "com.bitbyte.pdfgenerator"
                 artifactId = "PdfGeneratorLibrary"
                 version = "1.0.0-alpha"
 
