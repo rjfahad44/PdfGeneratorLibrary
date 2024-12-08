@@ -62,13 +62,13 @@ afterEvaluate {
                     description.set("An SDK for integrating Shadhin Music services with GP applications.") // Library Description
                     url.set("https://github.com/rjfahad44/PdfGeneratorLibrary.git") // Repository URL
 
-//                    licenses {
-//                        license {
-//                            name.set("The Apache License, Version 2.0")
-//                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-//                            distribution.set("repo")
-//                        }
-//                    }
+                    licenses {
+                        license {
+                            name.set("The Apache License, Version 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+                            distribution.set("repo")
+                        }
+                    }
 
                     developers {
                         developer {
@@ -87,16 +87,16 @@ afterEvaluate {
             }
         }
 
-        repositories {
-            maven {
-                // Specify where to publish the library (JitPack will build automatically)
-                name = "GitHubPackages"
-                url = uri("https://github.com/rjfahad44/PdfGeneratorLibrary.git")
+//        repositories {
+//            maven {
+//                // Specify where to publish the library (JitPack will build automatically)
+//                name = "GitHubPackages"
+//                url = uri("https://github.com/rjfahad44/PdfGeneratorLibrary.git")
 //                credentials {
 //                    username = project.findProperty("gpr.user") as String? ?: System.getenv("GITHUB_USERNAME")
 //                    password = project.findProperty("gpr.key") as String? ?: System.getenv("GITHUB_TOKEN")
 //                }
-            }
-        }
+//            }
+//        }
     }
 }
