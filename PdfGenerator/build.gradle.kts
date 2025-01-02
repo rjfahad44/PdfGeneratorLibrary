@@ -53,13 +53,11 @@ afterEvaluate {
                 artifactId = "PdfGeneratorLibrary"
                 version = "1.0.0-alpha"
 
-                // Specify the artifact to be published
                 from(components["release"])
 
-                // Metadata for the POM file
                 pom {
                     name.set("PdfGeneratorLibrary") // Library Name
-                    description.set("An SDK for integrating Shadhin Music services with GP applications.") // Library Description
+                    description.set("The PDFCreator library is an easy-to-use, flexible, and efficient tool for creating PDFs from Android views. Its simple API abstracts the complexity of working with PDFs, allowing you to focus on your application’s functionality. Whether you need to generate a simple resume, save a document, or share a report, this library simplifies the entire process.") // Library Description
                     url.set("https://github.com/rjfahad44/PdfGeneratorLibrary.git") // Repository URL
 
                     licenses {
