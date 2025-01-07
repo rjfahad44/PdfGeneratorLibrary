@@ -29,28 +29,31 @@ class ViewsToPdfConverter(private val context: Context) {
         onPdfCreated: (File?, String) -> Unit
     ) {
         try {
-            val pdfFileName = "$fileName.pdf"
             val sanitizedViews = views.filterNotNull()
             if (sanitizedViews.isEmpty()) {
-                Log.e("XmlToPdfConverter", "No valid views to generate PDF.")
-                onPdfCreated.invoke(null, "No valid views to generate PDF.")
+                onPdfCreated(null, "No valid views to generate PDF.")
                 return
             }
-            val pdfFile = generatePdfFile(sanitizedViews, pdfFileName, width, height)
-            val finalFile = if (downloadPdf) saveData(pdfFile, pdfFileName) else pdfFile
-            finalFile?.let { handlePdfOutput(it, showPdf, sharePdf) }
-            onPdfCreated.invoke(finalFile, "Successfully generate PDF.")
-            return
+
+            val pdfFile = generatePdfFile(sanitizedViews, fileName, width, height)
+            val savedFile = if (downloadPdf) saveData(pdfFile, fileName) else null
+
+            if (downloadPdf && savedFile == null) {
+                onPdfCreated(null, "Error saving PDF.")
+                return
+            }
+
+            onPdfCreated(savedFile ?: pdfFile, "PDF created successfully.")
+            handlePdfOutput(savedFile ?: pdfFile, showPdf, sharePdf)
         } catch (e: Exception) {
-            Log.e("XmlToPdfConverter", "Error creating PDF: ${e.message}", e)
-            onPdfCreated.invoke(null, "Error creating PDF: ${e.message}")
-            return
+            Log.e("PdfError", "Error creating PDF: ${e.message}", e)
+            onPdfCreated(null, "Error creating PDF: ${e.message}")
         }
     }
 
-
     private fun generatePdfFile(views: List<View>, fileName: String, width: Int, height: Int): File {
         val pdfDocument = PdfDocument()
+
         views.forEachIndexed { index, view ->
             val pageInfo = PdfDocument.PageInfo.Builder(width, height, index + 1).create()
             val page = pdfDocument.startPage(pageInfo)
@@ -61,10 +64,11 @@ class ViewsToPdfConverter(private val context: Context) {
             )
             view.layout(0, 0, width, height)
             view.draw(page.canvas)
+
             pdfDocument.finishPage(page)
         }
 
-        val pdfFile = File(context.cacheDir, fileName)
+        val pdfFile = File(context.cacheDir, "$fileName.pdf")
         FileOutputStream(pdfFile).use { pdfDocument.writeTo(it) }
         pdfDocument.close()
 
@@ -74,115 +78,90 @@ class ViewsToPdfConverter(private val context: Context) {
     private fun saveData(pdfFile: File, fileName: String): File? {
         val folderName = "My-Resume"
         val resolver = context.contentResolver
+
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // Scoped storage for Android 10 and above (SDK 29+)
             val downloadsCollection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
             val newFileDetails = ContentValues().apply {
                 put(MediaStore.Downloads.DISPLAY_NAME, fileName)
                 put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + File.separator + folderName)
-                put(MediaStore.Downloads.IS_PENDING, 1) // Mark the file as pending before writing
+                put(MediaStore.MediaColumns.RELATIVE_PATH, "${Environment.DIRECTORY_DOWNLOADS}/$folderName")
+                put(MediaStore.Downloads.IS_PENDING, 1)
             }
 
             try {
-                // Insert the new file into MediaStore
-                val fileUri = resolver.insert(downloadsCollection, newFileDetails)
-                fileUri?.let { uri ->
-                    resolver.openOutputStream(uri)?.use { outputStream ->
-                        pdfFile.inputStream().copyTo(outputStream) // Copy the content to the output stream
-                    }
+                val fileUri = resolver.insert(downloadsCollection, newFileDetails) ?: return null
+                resolver.openOutputStream(fileUri)?.use { pdfFile.inputStream().copyTo(it) }
 
-                    // Mark the file as no longer pending
-                    newFileDetails.clear()
-                    newFileDetails.put(MediaStore.Downloads.IS_PENDING, 0)
-                    resolver.update(uri, newFileDetails, null, null)
+                newFileDetails.clear()
+                newFileDetails.put(MediaStore.Downloads.IS_PENDING, 0)
+                resolver.update(fileUri, newFileDetails, null, null)
 
-                    // Return the file from the URI path
-                    val file = uri.path?.let { File(it) }
-                    file
-                }
+                File(fileUri.path ?: return null)
             } catch (e: Exception) {
                 Log.e("PdfSaveError", "Error saving file: ${e.message}", e)
                 null
             }
         } else {
-            // Legacy storage for Android versions below 10 (SDK 29)
-            val downloadsDir = File(Environment.getExternalStorageDirectory(), "Download/$folderName")
-
-            // Ensure that the folder exists
-            if (!downloadsDir.exists()) {
-                val folderCreated = downloadsDir.mkdirs()
-                if (!folderCreated) {
-                    Log.e("PdfSaveError", "Failed to create folder: ${downloadsDir.absolutePath}")
-                    return null
-                }
+            val downloadsDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), folderName)
+            if (!downloadsDir.exists() && !downloadsDir.mkdirs()) {
+                Log.e("PdfSaveError", "Failed to create directory: ${downloadsDir.absolutePath}")
+                return null
             }
 
-            val downloadFile = File(downloadsDir, fileName)
-            try {
-                // Copy the file to the destination
+            val downloadFile = File(downloadsDir, "$fileName.pdf")
+            return try {
                 pdfFile.copyTo(downloadFile, overwrite = true)
-                return downloadFile
+                downloadFile
             } catch (e: Exception) {
-                Log.e("PdfSaveError", "Error saving file in legacy storage: ${e.message}", e)
-                return null
+                Log.e("PdfSaveError", "Error saving file: ${e.message}", e)
+                null
             }
         }
     }
-
-
 
     private fun handlePdfOutput(file: File, showPdf: Boolean, sharePdf: Boolean) {
         when {
             sharePdf -> sharePdfFile(file)
             showPdf -> showPdf(file)
-            else -> {
-            }
         }
     }
 
     private fun showPdf(file: File) {
-        // Check if the file exists before proceeding
         if (!file.exists()) {
             Toast.makeText(context, "File not found.", Toast.LENGTH_SHORT).show()
             return
         }
 
         try {
-            // Create the URI for the file using FileProvider
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-
-            // Create an Intent to view the PDF
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/pdf")
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            // Start the activity to view the PDF
             context.startActivity(intent)
         } catch (e: ActivityNotFoundException) {
-            // Handle the case where no PDF viewer is found
             Toast.makeText(context, "No PDF viewer found.", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            // Catch any other errors
             Toast.makeText(context, "Error opening PDF: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
-
     private fun sharePdfFile(file: File) {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-
         try {
+            val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+
             context.startActivity(Intent.createChooser(shareIntent, "Share PDF Using"))
         } catch (e: ActivityNotFoundException) {
             Toast.makeText(context, "No apps found to share the PDF.", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(context, "Error sharing PDF: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

@@ -1,23 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Allow access to external storage -->
     <external-path
         name="external_path"
         path="." />
 
+    <!-- Allow access to the external storage Downloads folder (Android 10 and above) -->
+    <external-path
+        name="external_downloads"
+        path="Download/" />
+
+    <!-- Scoped storage access to external files (for API 29+) -->
+    <external-files-path
+        name="external_files"
+        path="." />
+
+    <!-- Scoped storage (files directory) for API 29+ -->
     <external-files-path
         name="external_files_path"
         path="." />
 
+    <!-- App's internal files directory -->
     <files-path
         name="files_path"
         path="." />
 
+    <!-- External cache directory -->
     <external-cache-path
         name="external_cache_path"
         path="." />
 
+    <!-- Internal cache directory -->
     <cache-path
         name="cache_path"
         path="." />
-
 </paths>
