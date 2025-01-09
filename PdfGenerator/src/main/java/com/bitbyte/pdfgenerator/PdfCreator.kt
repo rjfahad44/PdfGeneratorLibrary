@@ -28,9 +28,7 @@ class PdfCreator(private val context: Context) : IPdfCreator {
             sharePdf,
             width ?: context.resources.displayMetrics.widthPixels,
             height ?: context.resources.displayMetrics.heightPixels,
-            onPdfCreated = { file, message ->
-                onPdfCreated(file, message)
-            }
+            onPdfCreated = onPdfCreated
         )
     }
 }
